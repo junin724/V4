@@ -1,0 +1,195 @@
+---====== Load spawner ======---
+
+local spawner = loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Doors/Entity%20Spawner/V2/Source.lua"))()
+
+---====== Services ======---
+
+local Players = game:GetService("Players")
+local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
+local ReSt = game:GetService("ReplicatedStorage")
+local Plr = Players.LocalPlayer
+
+---====== Helper Function (Roblox Audio) ======---
+
+local function PlaySound(soundId, vol, name, parent)
+    local sound = Instance.new("Sound")
+    sound.SoundId = soundId
+    sound.Volume = vol or 1
+    sound.Name = name or "CustomSound"
+    sound.Parent = parent or workspace
+    sound:Play()
+    
+    -- Remove automaticamente o som após terminar de tocar para não acumular lixo na memória
+    sound.Ended:Connect(function()
+        sound:Destroy()
+    end)
+    
+    return sound
+end
+
+---====== Lighting RED ======---
+
+local cc = Lighting:FindFirstChild("MainColorCorrection")
+if not cc then
+    cc = Instance.new("ColorCorrectionEffect")
+    cc.Name = "MainColorCorrection"
+    cc.Parent = Lighting
+end
+
+cc.TintColor = Color3.fromRGB(7, 163, 247)
+cc.Contrast = 1
+
+TweenService:Create(cc, TweenInfo.new(1.5), {Contrast = 0}):Play()
+TweenService:Create(cc, TweenInfo.new(6), {TintColor = Color3.fromRGB(255, 255, 255)}):Play()
+
+---====== Create entity ======---
+
+local entity = spawner.Create({
+    Entity = {
+        Name = "Ripper",
+        Asset = "https://github.com/junin724/V4/raw/refs/heads/main/revokerdo.rbxm",
+        HeightOffset = 0
+    },
+
+    Lights = {
+        Flicker = {
+            Enabled = false,
+            Duration = 1
+        },
+        Shatter = true,
+        Repair = false
+    },
+
+    CameraShake = {
+        Enabled = true,
+        Range = 50,
+        Values = {2.5, 20, 0.5, 1}
+    },
+
+    Movement = {
+        Speed = 100,
+        Delay = 4,
+        Reversed = true
+    },
+
+    Rebounding = {
+        Enabled = false
+    },
+
+    Damage = {
+        Enabled = true,
+        Range = 40,
+        Amount = 125
+    },
+
+    Crucifixion = {
+        Enabled = false
+    },
+
+    Death = {
+        Type = "Guiding",
+        Hints = {"You died to who you call Ripper...", "You can tell his presence by the lights and his scream.", "Hide when this happens!"},
+        Cause = "Ripper"
+    }
+})
+
+---====== Callbacks ======---
+
+entity:SetCallback("OnSpawned", function()
+    print("[RIPPER] Spawned")
+end)
+
+entity:SetCallback("OnStartMoving", function()
+    print("[RIPPER] Moving")
+    -- Substitua "rbxassetid://SEU_ID_AQUI" pelo ID de áudio do Roblox desejado para o movimento
+    PlaySound("rbxassetid://0", 10, "rippermoving", workspace)
+end)
+
+entity:SetCallback("OnDamagePlayer", function(newHealth)
+    if newHealth <= 0 then
+        if ReSt:FindFirstChild("GameStats") then
+            local stats = ReSt.GameStats:FindFirstChild("Player_"..Plr.Name)
+            if stats then
+                stats.Total.DeathCause.Value = "Ripper"
+            end
+        end
+        
+        -- Para o som de movimento se existir
+        local movingSound = workspace:FindFirstChild("rippermoving")
+        if movingSound then
+            movingSound:Stop()
+        end
+        
+        -- Remove a entidade se existir
+        local ripperModel = workspace:FindFirstChild("Ripper")
+        if ripperModel then
+            ripperModel:Destroy()
+        end
+
+        local character = Plr.Character
+        if character and character:FindFirstChild("Humanoid") then
+            local humanoid = character.Humanoid
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+            humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
+            if character:FindFirstChild("HumanoidRootPart") then
+                character.HumanoidRootPart.Anchored = true
+            end
+        end
+
+        -- Sons de Jumpscare (Substitua pelos IDs do Roblox se necessário)
+        PlaySound("rbxassetid://0", 1, "Ripper5Sound", workspace)
+        task.wait(1.5)
+        PlaySound("rbxassetid://0", 1, "Ripper6Sound", workspace)
+
+        -- Efeitos visuais na UI
+        local playerGui = Plr:FindFirstChild("PlayerGui")
+        if playerGui and playerGui:FindFirstChild("MainUI") and playerGui.MainUI:FindFirstChild("Drip") then
+            local drip = playerGui.MainUI.Drip
+            drip.Image = "rbxassetid://236542974"
+            
+            drip.Visible = true
+            task.wait(0.3)
+            drip.Visible = false
+            task.wait(0.1)
+            drip.Visible = true
+            task.wait(0.2)
+            drip.Visible = true
+            task.wait(0.2)
+            drip.Visible = false
+            task.wait(0.3)
+            drip.Visible = true
+            task.wait(0.2)
+            drip.Visible = false
+        end
+
+        if character and character:FindFirstChild("Humanoid") then
+            character.Humanoid.Health = 0
+        end
+
+        if ReSt:FindFirstChild("GameStats") and ReSt.GameStats:FindFirstChild("Player_"..Plr.Name) then
+            ReSt.GameStats["Player_"..Plr.Name].Total.DeathCause.Value = "Ripper"
+        end
+    end
+end)
+
+entity:SetCallback("OnDespawned", function()
+    print("[RIPPER] Despawned")
+    
+    local success, achievementGiver = pcall(function()
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/Utilities/main/Doors/Custom%20Achievements/Source.lua"))()
+    end)
+    
+    if success and achievementGiver then
+        achievementGiver({
+            Title = "Torn Apart",
+            Desc = "Dont leave too early..",
+            Reason = "Encounter Ripper.",
+            Image = "rbxassetid://17702317077"
+        })
+    end
+end)
+
+---====== Run entity ======---
+
+entity:Run()

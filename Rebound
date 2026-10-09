@@ -1,0 +1,264 @@
+-- Função de som customizado
+local function GitAud(soundgit, filename)
+    local url = soundgit
+    local FileName = filename or "custom_sound"
+    writefile(FileName .. ".mp3", game:HttpGet(url))
+    return (getcustomasset or getsynasset)(FileName .. ".mp3")
+end
+
+local function CustomGitSound(soundlink, vol, filename)
+    pcall(function()
+        local sound = Instance.new("Sound")
+        sound.SoundId = GitAud(soundlink, filename)
+        sound.Parent = workspace
+        sound.Name = "reboundspawn"
+        sound.Volume = 3
+        sound.PlaybackSpeed = 1
+        sound:Play()
+        sound.Ended:Connect(function()
+            sound:Destroy()
+        end)
+    end)
+end
+
+CustomGitSound("https://github.com/Anctarus7105/Custom-Sounds/raw/main/ReboundWarning.mp3", 1, "reboundspawn")
+
+task.wait(0.5)
+
+local maxRebounds = 3
+local reboundCount = 0
+local cameraShaker = require(game.ReplicatedStorage:WaitForChild("CameraShaker"))
+local camera = workspace.CurrentCamera
+local camShake = cameraShaker.new(Enum.RenderPriority.Camera.Value, function(cf)
+    camera.CFrame = camera.CFrame * cf
+end)
+
+local function LoadCustomInstance(url, parent)
+    local success, result = pcall(function()
+        local decoded = game:HttpGet(url)
+        local tempPath = "temp_rebound_model.rbxm"
+        writefile(tempPath, decoded)
+        local loadedModel = game:GetObjects(getcustomasset(tempPath))[1]
+        return loadedModel
+    end)
+
+    if success and result then
+        local model = result
+        model.Parent = parent or workspace
+        return model
+    else
+        warn("❌ Erro ao baixar/carregar o modelo do GitHub: ", result)
+        return nil
+    end
+end
+
+local function Move()
+    local s = LoadCustomInstance("https://github.com/junin724/V4/raw/refs/heads/main/rebound.rbxm", workspace)
+    if not s then return end
+    
+    local entity = s:FindFirstChild("Rebound") or s:IsA("BasePart") and s
+    if not entity then
+        if s:IsA("Model") and s.PrimaryPart then
+            entity = s.PrimaryPart
+        else
+            entity = s:FindFirstChildWhichIsA("BasePart")
+        end
+    end
+    
+    if not entity then
+        warn("[Rebound] Nenhuma parte física encontrada!")
+        s:Destroy()
+        return
+    end
+
+    local gruh = workspace:FindFirstChild("CurrentRooms")
+    if not gruh then
+        warn("[Rebound] Pasta CurrentRooms não encontrada!")
+        s:Destroy()
+        return
+    end
+    
+    local latestRoomVal = game.ReplicatedStorage.GameData.LatestRoom.Value
+    reboundCount = reboundCount + 1
+
+    local function GetLastRoom()
+        local gruh = workspace.CurrentRooms
+        return gruh[game.ReplicatedStorage.GameData.LatestRoom.Value + 1]
+    end
+
+    entity.CFrame = GetLastRoom().RoomExit.CFrame
+
+    -- Divide o task.wait(5) original: 4 segundos de espera + 1 segundo tocando os sons antes de se mover
+    task.wait(4)
+
+    pcall(function()
+        -- Som 1 (ID: 9114221327) no volume 10
+        local sound1 = Instance.new("Sound")
+        sound1.SoundId = "rbxassetid://9114221327"
+        sound1.Volume = 10
+        sound1.Parent = workspace
+        sound1:Play()
+        sound1.Ended:Connect(function() sound1:Destroy() end)
+
+        -- Som 2 (ID: 103078219556352) no volume 0.5 com Distortion de 0.5
+        local sound2 = Instance.new("Sound")
+        sound2.SoundId = "rbxassetid://103078219556352"
+        sound2.Volume = 0.5
+        
+        local distortion = Instance.new("DistortionSoundEffect")
+        distortion.Level = 0.5
+        distortion.Parent = sound2
+        
+        sound2.Parent = workspace
+        sound2:Play()
+        sound2.Ended:Connect(function() sound2:Destroy() end)
+    end)
+
+    task.wait(1) -- Completa o tempo total de 5 segundos antes de iniciar a movimentação
+
+    -- Loop de verificação de dano / Jumpscare
+    local killed = false
+    local connection
+    connection = game:GetService("RunService").RenderStepped:Connect(function()
+        if killed then return end
+        local player = game.Players.LocalPlayer
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = player.Character.HumanoidRootPart
+            
+            -- Se estiver escondendo, não mata
+            local isHiding = player.Character:GetAttribute("Hiding")
+            if not isHiding then
+                local distance = (entity.Position - hrp.Position).Magnitude
+                
+                -- Tremores na câmera se estiver próximo
+                if distance <= 60 then
+                    camShake:Start()
+                    camShake:ShakeOnce(17, 6, 0.1, 1)
+                end
+
+                -- Condição de Jumpscare e Morte
+                if distance <= 25 then
+                    killed = true
+                    if connection then connection:Disconnect() end
+
+                    local ReboundJs = Instance.new("ScreenGui")
+                    local Static = Instance.new("ImageLabel")
+                    local ReboundImg = Instance.new("ImageLabel")
+                    local JSSIZE = Instance.new("ImageLabel")
+
+                    ReboundJs.Name = "ReboundJs"
+                    ReboundJs.Parent = player:WaitForChild("PlayerGui")
+
+                    Static.Name = "Static"
+                    Static.Parent = ReboundJs
+                    Static.BackgroundTransparency = 1
+                    Static.Size = UDim2.new(11, 0, 11, 0)
+                    Static.Image = "rbxassetid://236543215"
+                    Static.ImageTransparency = 1
+
+                    ReboundImg.Name = "Rebound"
+                    ReboundImg.Parent = ReboundJs
+                    ReboundImg.BackgroundTransparency = 1
+                    ReboundImg.Position = UDim2.new(0.4866, 0, 0.4793, 0)
+                    ReboundImg.Size = UDim2.new(0.0267, 0, 0.0387, 0)
+                    ReboundImg.Image = "rbxassetid://136184103476873"
+
+                    JSSIZE.Name = "JSSIZE"
+                    JSSIZE.Parent = ReboundJs
+                    JSSIZE.BackgroundTransparency = 1
+                    JSSIZE.Position = UDim2.new(-0.586, 0, -1.251, 0)
+                    JSSIZE.Size = UDim2.new(2.128, 0, 3.081, 0)
+                    JSSIZE.Visible = false
+                    JSSIZE.Image = "rbxassetid://136184103476873"
+
+                    local jumpscareSound = Instance.new("Sound")
+                    jumpscareSound.SoundId = "rbxassetid://109582246349306"
+                    jumpscareSound.Volume = 10
+                    jumpscareSound.Parent = ReboundJs
+                    jumpscareSound:Play()
+
+                    -- Efeito visual do jumpscare
+                    task.spawn(function()
+                        game.TweenService:Create(Static, TweenInfo.new(0.5), {ImageTransparency = 0.8}):Play()
+                        game.TweenService:Create(ReboundImg, TweenInfo.new(0.5), {Size = JSSIZE.Size, Position = JSSIZE.Position}):Play()
+                        
+                        task.wait(0.3)
+                        local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+                        if humanoid then
+                            humanoid.Health = 0
+                        end
+                        
+                        pcall(function()
+                            game.ReplicatedStorage.GameStats["Player_" .. player.Name].Total.DeathCause.Value = "Rebound"
+                            game.ReplicatedStorage.Bricks.DeathHint.OnClientEvent:Fire({
+                                "You died to who you call Rebound...",
+                                "He makes his presence known and keeps coming back...",
+                                "Hide when this happens!"
+                            })
+                        end)
+
+                        task.wait(0.5)
+                        game.TweenService:Create(Static, TweenInfo.new(1), {ImageTransparency = 1}):Play()
+                        game.TweenService:Create(ReboundImg, TweenInfo.new(0.3), {ImageTransparency = 1}):Play()
+                        task.wait(1)
+                        ReboundJs:Destroy()
+                    end)
+                end
+            end
+        end
+    end)
+
+    local gruh = workspace.CurrentRooms
+    for i = game.ReplicatedStorage.GameData.LatestRoom.Value, 1, -1 do
+        if gruh:FindFirstChild(i) then
+            local room = gruh[i]
+            if room:FindFirstChild("RoomEntrance") then
+                local a = room.RoomEntrance
+                local tween = game.TweenService:Create(entity, TweenInfo.new(2, Enum.EasingStyle.Sine), {CFrame = a.CFrame})
+                tween:Play()
+                tween.Completed:Wait()
+            end
+        end
+    end
+    entity.Anchored = false
+    entity.CanCollide = false
+    game.Debris:AddItem(s, 5)
+end
+
+local function Rebound()
+    local Warn = Instance.new("ColorCorrectionEffect")
+    Warn.TintColor = Color3.fromRGB(65, 138, 255)
+    Warn.Saturation = -0.7
+    Warn.Contrast = 0.2
+    Warn.Parent = game.Lighting
+
+    game.TweenService:Create(Warn, TweenInfo.new(15), {
+        TintColor = Color3.fromRGB(255, 255, 255),
+        Saturation = 0,
+        Contrast = 0
+    }):Play()
+
+    camShake:Start()
+    camShake:ShakeOnce(10, 3, 0.1, 6)
+    
+    pcall(Move)
+
+    task.spawn(function()
+        while maxRebounds > 0 do
+            game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+            task.wait(2)
+            pcall(Move)
+            maxRebounds = maxRebounds - 1
+        end
+    end)
+
+    task.wait(15)
+    Warn:Destroy()
+end
+
+pcall(Rebound)
+warn("[Rebound] Executado completamente!")
+
+pcall(function()
+    require(game.Players.LocalPlayer.MainUI.Initiator.Main_Game).caption("thanks for using rebound script! " .. game.Players.LocalPlayer.Character.Name .. ".", 5)
+end)

@@ -1,0 +1,55 @@
+-- 🧊 Frost Entity Script (Atualizado: 25 Studs, Sem Sons)
+game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+
+function GetRoom()
+    local gruh = workspace.CurrentRooms
+    return gruh:FindFirstChild(game.ReplicatedStorage.GameData.LatestRoom.Value)
+end
+
+local plr = game.Players.LocalPlayer
+local chr = plr.Character or plr.CharacterAdded:Wait()
+
+-- ⚙️ Carregar model do GitHub
+local success, model = pcall(function()
+    local content = game:HttpGet("https://github.com/junin724/V4/raw/refs/heads/main/fluster.rbxm")
+    local filename = "temp_fluster_" .. math.random(100000, 999999) .. ".rbxm"
+    writefile(filename, content)
+    local assetFunc = getcustomasset or getsynasset
+    local obj = game:GetObjects(assetFunc(filename))[1]
+    delfile(filename)
+    return obj
+end)
+
+if not success or not model then
+    warn("Não foi possível carregar o modelo do Frost.")
+    return
+end
+
+model.Parent = workspace
+local entity = model:FindFirstChildWhichIsA("BasePart") or model.PrimaryPart or model:GetChildren()[1]
+
+entity.CFrame = GetRoom():WaitForChild("RoomEntrance").CFrame * CFrame.new(0, 5, -15)
+
+-- 🔥 Sistema de dano por proximidade (25 studs, 5 de dano, delay de 2s se não tiver isqueiro)
+local active = true
+task.spawn(function()
+    while active do
+        task.wait(2)
+        local lighter = chr:FindFirstChild("Lighter")
+        if not lighter and chr:FindFirstChild("HumanoidRootPart") then
+            local distance = (entity.Position - chr.HumanoidRootPart.Position).Magnitude
+            if distance <= 25 then
+                pcall(function()
+                    chr.Humanoid.Health -= 5
+                end)
+            end
+        end
+    end
+end)
+
+-- 🛑 Ao mudar de sala
+game.ReplicatedStorage.GameData.LatestRoom.Changed:Wait()
+active = false
+
+task.wait(1)
+model:Destroy()
